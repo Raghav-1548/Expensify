@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settlement Details</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: linear-gradient(to bottom right, #1e293b, #0f172a);
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #f8fafc;
+            font-size: 28px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 16px;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #334155;
+            text-align: center;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+        }
+
+        th {
+            color: #f8fafc;
+            font-weight: 500;
+        }
+
+        td {
+            color: #e2e8f0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            background: linear-gradient(to right, #0ea5e9, #38bdf8);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: linear-gradient(to right, #0284c7, #38bdf8);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .save-button {
+            background: linear-gradient(to right, #10b981, #38bdf8);
+        }
+
+        .save-button:hover {
+            background: linear-gradient(to right, #059669, #38bdf8);
+        }
+
+        .summary-info {
+            margin: 24px 0;
+            padding: 16px;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .summary-info p {
+            margin: 8px 0;
+            color: #e2e8f0;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Settlement Details</h1>
+        
+        <div class="summary-info" id="summaryInfo">
+            <!-- Total expenses and per person share will be displayed here -->
+        </div>
+
+        <div class="table-container">
+            <h2>Who Owes Whom</h2>
+            <table id="settlementTable">
+                <thead>
+                    <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="settlementTableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="button-group">
+            <button onclick="goBack()">Back to Expenses</button>
+            <button class="save-button" onclick="saveResults()">Save Results</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSettlement = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+            if (expenses.length > 0) {
+                calculateAndDisplaySettlement(expenses);
+            } else {
+                document.querySelector('.table-container').innerHTML = `
+                    <div class="no-data">No settlement data available. Please add expenses first.</div>`;
+            }
+        });
+
+        function calculateAndDisplaySettlement(expenses) {
+            // Calculate total expenses
+            const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+            
+            // Get unique list of people
+            const people = [...new Set(expenses.map(exp => exp.person))];
+            
+            // Calculate share per person
+            const perPersonShare = total / people.length;
+
+            // Calculate individual balances and store expenses per person
+            const balances = {};
+            const personExpenses = {};
+            people.forEach(person => {
+                balances[person] = 0;
+                personExpenses[person] = [];
+                
+                expenses.forEach(exp => {
+                    if (exp.person === person) {
+                        balances[person] += parseFloat(exp.amount);
+                        personExpenses[person].push(exp);
+                    }
+                });
+                balances[person] -= perPersonShare;
+            });
+
+            // Separate creditors and debtors
+            const creditors = [];
+            const debtors = [];
+            for (const person in balances) {
+                if (balances[person] > 0.01) {
+                    creditors.push({ person, amount: balances[person] });
+                } else if (balances[person] < -0.01) {
+                    debtors.push({ person, amount: -balances[person] });
+                }
+            }
+
+            // Calculate settlements
+            const settlements = [];
+            while (debtors.length > 0 && creditors.length > 0) {
+                const debtor = debtors[0];
+                const creditor = creditors[0];
+                const amount = Math.min(debtor.amount, creditor.amount);
+
+                if (amount > 0.01) {
+                    settlements.push({
+                        from: debtor.person,
+                        to: creditor.person,
+                        amount: amount.toFixed(2),
+                        details: {
+                            fromPaid: personExpenses[debtor.person].reduce((sum, exp) => sum + parseFloat(exp.amount), 0),
+                            toPaid: personExpenses[creditor.person].reduce((sum, exp) => sum + parseFloat(exp.amount), 0),
+                            expenses: expenses
+                        }
+                    });
+                }
+
+                debtor.amount -= amount;
+                creditor.amount -= amount;
+
+                if (debtor.amount < 0.01) debtors.shift();
+                if (creditor.amount < 0.01) creditors.shift();
+            }
+
+            // Store current settlement
+            currentSettlement = {
+                date: new Date().toLocaleDateString(),
+                total: total,
+                perPersonShare: perPersonShare,
+                people: people,
+                settlements: settlements,
+                originalExpenses: expenses
+            };
+
+            // Update UI
+            document.getElementById('summaryInfo').innerHTML = `
+                <p>Total Expenses: ₹${total.toFixed(2)}</p>
+                <p>Share per Person: ₹${perPersonShare.toFixed(2)}</p>
+                <p>Number of People: ${people.length}</p>
+                <p>Date: ${currentSettlement.date}</p>
+            `;
+
+            const settlementBody = document.getElementById('settlementTableBody');
+            settlementBody.innerHTML = settlements.map(settlement => `
+                <tr>
+                    <td>${settlement.from}</td>
+                    <td>${settlement.to}</td>
+                    <td>₹${settlement.amount}</td>
+                </tr>
+            `).join('');
+        }
+
+        function saveResults() {
+            if (!currentSettlement) {
+                alert('No settlement data to save!');
+                return;
+            }
+
+            let savedResults = JSON.parse(localStorage.getItem('savedResults') || '[]');
+            savedResults.push(currentSettlement);
+            localStorage.setItem('savedResults', JSON.stringify(savedResults));
+            
+            // Store current state before redirecting
+            localStorage.setItem('returnToExpenses', 'true');
+            
+            alert('Settlement results saved successfully!');
+            window.location.href = 'index.html';
+        }
+
+        function goBack() {
+            // Set flag to indicate we're returning to the expense entry page
+            localStorage.setItem('returnToExpenses', 'true');
+            
+            // Keep the current expenses in localStorage
+            // They will be loaded by the expense entry page
+            
+            // Navigate back to the expense entry page
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

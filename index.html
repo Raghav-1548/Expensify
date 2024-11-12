@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Just Expensify</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            color: #e2e8f0;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: linear-gradient(to bottom right, #1e293b, #0f172a);
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #f8fafc;
+            font-size: 28px;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 8px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s ease;
+        }
+
+        input, select {
+            background: #ffffff;
+            color: #000000;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+        }
+
+        button {
+            background: linear-gradient(to right, #0ea5e9, #38bdf8);
+            color: white;
+            border: none;
+            font-weight: 500;
+            margin-top: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: linear-gradient(to right, #0284c7, #38bdf8);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .expense-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 16px;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .expense-item {
+            padding: 8px;
+            border-bottom: 1px solid #334155;
+            color: #e2e8f0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .button-group button {
+            margin-top: 0;
+        }
+
+        .view-saved {
+            background: linear-gradient(to right, #10b981, #38bdf8);
+        }
+
+        .view-saved:hover {
+            background: linear-gradient(to right, #059669, #38bdf8);
+        }
+
+        .reset-button {
+            background: linear-gradient(to right, #ef4444, #38bdf8);
+        }
+
+        .reset-button:hover {
+            background: linear-gradient(to right, #dc2626, #38bdf8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Just Expensify :)</h1>
+        <label for="numPeople">Number of People:</label>
+        <input type="number" id="numPeople" min="2" placeholder="Enter number of people">
+        
+        <div id="nameInputs" style="display: none;"></div>
+        <button onclick="generateNameInputs()" id="generateBtn">Generate Name Fields</button>
+
+        <div id="expenseInput" style="display: none;">
+            <label for="personSelect">Select Person:</label>
+            <select id="personSelect"></select>
+
+            <label for="purpose">Purpose:</label>
+            <input type="text" id="purpose" placeholder="Expense purpose">
+
+            <label for="amount">Amount Paid:</label>
+            <input type="number" id="amount" min="0" placeholder="Amount paid">
+
+            <button onclick="addExpense()">Add Expense</button>
+            
+            <div class="expense-list" id="expenseList"></div>
+
+            <div class="button-group">
+                <button onclick="calculateAndRedirect()">Calculate Settlement</button>
+                <button class="view-saved" onclick="window.location.href='savedresults.html'">My Expenses</button>
+                <button class="reset-button" onclick="resetAll()">Reset All</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let people = [];
+        let expenses = [];
+
+        window.onload = function() {
+            const savedPeople = getCookie('people');
+            const savedExpenses = getCookie('expenses');
+            const shouldRestore = localStorage.getItem('returnToExpenses');
+            
+            if (shouldRestore === 'true' && savedPeople && savedExpenses) {
+                people = JSON.parse(savedPeople);
+                expenses = JSON.parse(savedExpenses);
+                
+                document.getElementById('numPeople').value = people.length;
+                generateNameInputs();
+                document.getElementById('expenseInput').style.display = 'block';
+                displayExpenses();
+                localStorage.removeItem('returnToExpenses');
+            }
+        };
+
+        function generateNameInputs() {
+            const num = parseInt(document.getElementById('numPeople').value);
+            if (num < 2) {
+                alert("Please enter at least 2 people");
+                return;
+            }
+
+            const container = document.getElementById('nameInputs');
+            container.innerHTML = '';
+            container.style.display = 'block';
+
+            for (let i = 0; i < num; i++) {
+                const label = document.createElement('label');
+                label.textContent = `Person ${i + 1} Name:`;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `person${i}`;
+                input.value = people[i] || '';
+                container.appendChild(label);
+                container.appendChild(input);
+            }
+
+            const submitBtn = document.createElement('button');
+            submitBtn.textContent = 'Initialize People';
+            submitBtn.onclick = initializePeople;
+            container.appendChild(submitBtn);
+
+            document.getElementById('generateBtn').style.display = 'none';
+        }
+
+        function initializePeople() {
+            const num = parseInt(document.getElementById('numPeople').value);
+            people = [];
+            
+            for (let i = 0; i < num; i++) {
+                const name = document.getElementById(`person${i}`).value.trim();
+                if (name) {
+                    people.push(name);
+                }
+            }
+
+            if (people.length < 2) {
+                alert("Please enter at least two names");
+                return;
+            }
+
+            const personSelect = document.getElementById('personSelect');
+            personSelect.innerHTML = people.map(person => 
+                `<option value="${person}">${person}</option>`
+            ).join('');
+            
+            document.getElementById('expenseInput').style.display = 'block';
+            document.getElementById('nameInputs').style.display = 'none';
+            setCookie('people', JSON.stringify(people), 7);
+        }
+
+        function addExpense() {
+            const person = document.getElementById('personSelect').value;
+            const purpose = document.getElementById('purpose').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            if (person && purpose && amount >= 0) {
+                expenses.push({ person, purpose, amount });
+                document.getElementById('purpose').value = '';
+                document.getElementById('amount').value = '';
+                displayExpenses();
+                setCookie('expenses', JSON.stringify(expenses), 7);
+            } else {
+                alert("Please enter all fields correctly");
+            }
+        }
+
+        function displayExpenses() {
+            const expenseList = document.getElementById('expenseList');
+            expenseList.innerHTML = expenses.map(exp => 
+                `<div class="expense-item">
+                    ${exp.person} - ${exp.purpose}: ₹${exp.amount.toFixed(2)}
+                </div>`
+            ).join('');
+        }
+
+        function calculateAndRedirect() {
+            if (expenses.length === 0) {
+                alert("Please add some expenses first");
+                return;
+            }
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            window.location.href = 'owes.html';
+        }
+
+        function resetAll() {
+            people = [];
+            expenses = [];
+            document.getElementById('numPeople').value = '';
+            document.getElementById('nameInputs').innerHTML = '';
+            document.getElementById('nameInputs').style.display = 'none';
+            document.getElementById('expenseInput').style.display = 'none';
+            document.getElementById('expenseList').innerHTML = '';
+            document.getElementById('generateBtn').style.display = 'block';
+            deleteCookie('people');
+            deleteCookie('expenses');
+            localStorage.removeItem('expenses');
+            localStorage.removeItem('savedResults');
+            localStorage.removeItem('returnToExpenses');
+        }
+
+        function setCookie(name, value, days) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        function deleteCookie(name) {
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved Results</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            background: linear-gradient(to bottom right, #1e293b, #0f172a);
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #f8fafc;
+            font-size: 28px;
+        }
+
+        .settlement-card {
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+
+        .settlement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .settlement-summary {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 16px 0;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #334155;
+            text-align: center;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b);
+        }
+
+        th {
+            color: #f8fafc;
+            font-weight: 500;
+        }
+
+        td {
+            color: #e2e8f0;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            background: linear-gradient(to right, #0ea5e9, #38bdf8);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: linear-gradient(to right, #0284c7, #38bdf8);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .delete-button {
+            background: linear-gradient(to right, #ef4444, #38bdf8);
+        }
+
+        .delete-button:hover {
+            background: linear-gradient(to right, #dc2626, #38bdf8);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+            font-size: 18px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Saved Settlements</h1>
+        <div id="savedSettlements"></div>
+        <div class="button-container">
+            <button onclick="window.location.href='index.html'">Back to Expenses</button>
+            <button class="delete-button" onclick="clearAllResults()">Clear All Results</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadSavedResults);
+
+        function loadSavedResults() {
+            const savedResults = JSON.parse(localStorage.getItem('savedResults') || '[]');
+            const container = document.getElementById('savedSettlements');
+
+            if (savedResults.length === 0) {
+                container.innerHTML = '<div class="no-data">No saved settlements found</div>';
+                return;
+            }
+
+            container.innerHTML = savedResults.map((result, index) => `
+                <div class="settlement-card">
+                    <div class="settlement-header">
+                        <h3>Settlement ${index + 1}</h3>
+                        <span>Date: ${result.date}</span>
+                    </div>
+                    
+                    <div class="settlement-summary">
+                        <p>Total Expenses: ₹${result.total.toFixed(2)}</p>
+                        <p>Share per Person: ₹${result.perPersonShare.toFixed(2)}</p>
+                        <p>Number of People: ${result.people.length}</p>
+                    </div>
+
+                    <h4>Settlement Details</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.settlements.map(settlement => `
+                                <tr>
+                                    <td>${settlement.from}</td>
+                                    <td>${settlement.to}</td>
+                                    <td>₹${settlement.amount}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <h4>Original Expenses</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Person</th>
+                                <th>Purpose</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.originalExpenses.map(expense => `
+                                <tr>
+                                    <td>${expense.person}</td>
+                                    <td>${expense.purpose}</td>
+                                    <td>₹${expense.amount.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `).join('');
+        }
+
+        function clearAllResults() {
+            if (confirm('Are you sure you want to clear all saved settlements? This cannot be undone.')) {
+                localStorage.removeItem('savedResults');
+                loadSavedResults();
+            }
+        }
+    </script>
+</body>
+</html>
